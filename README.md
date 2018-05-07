@@ -1,6 +1,8 @@
 # resource-align
 Web service to align resources to curriculum standards, drawing on multiple criteria
 
+NOTE: This is experimental and proof-of-concept code
+
 Works from a dummy repository (tab-delimited file), comprising:
 
 * URL: URL of resource
