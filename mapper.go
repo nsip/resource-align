@@ -46,6 +46,7 @@ func read_repository(directory string) (map[string]repository_entry, error) {
 		defer buf.Close()
 		reader := csvmap.NewReader(buf)
 		reader.Reader.Comma = '\t'
+		reader.Reader.LazyQuotes = true
 		columns, err := reader.ReadHeader()
 		if err != nil {
 			log.Printf("%s: ", filename)
@@ -118,6 +119,8 @@ func Init() {
 }
 
 type alignment struct {
+	Url           string
+	Statement     string
 	Expert        float64
 	Usage         float64
 	TextBased     float64
@@ -126,16 +129,18 @@ type alignment struct {
 
 func extract_alignments(item repository_entry, alignments map[string]*alignment) map[string]*alignment {
 	for _, statement := range item.ManualAlignment {
-		if _, ok := alignments[statement]; !ok {
-			alignments[statement] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0}
+		key := statement + ":" + item.Url
+		if _, ok := alignments[key]; !ok {
+			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: statement}
 		}
-		alignments[statement].Expert = alignments[statement].Expert + 1
+		alignments[key].Expert = alignments[key].Expert + 1
 	}
 	for statement, value := range item.Paradata {
-		if _, ok := alignments[statement]; !ok {
-			alignments[statement] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0}
+		key := statement + ":" + item.Url
+		if _, ok := alignments[key]; !ok {
+			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: statement}
 		}
-		alignments[statement].Usage = alignments[statement].Usage + float64(value)
+		alignments[key].Usage = alignments[key].Usage + float64(value)
 	}
 	// TODO: call classifier on resource text
 	return alignments
@@ -144,7 +149,7 @@ func extract_alignments(item repository_entry, alignments map[string]*alignment)
 func normalise_alignments(alignments map[string]*alignment) map[string]*alignment {
 	max := 0.0
 	for _, v := range alignments {
-		if max > v.Expert {
+		if max < v.Expert {
 			max = v.Expert
 		}
 	}
@@ -155,7 +160,7 @@ func normalise_alignments(alignments map[string]*alignment) map[string]*alignmen
 	}
 	max = 0.0
 	for _, v := range alignments {
-		if max > v.Usage {
+		if max < v.Usage {
 			max = v.Usage
 		}
 	}
@@ -172,6 +177,15 @@ func normalise_alignments(alignments map[string]*alignment) map[string]*alignmen
 	return alignments
 }
 
+func alignments_to_sorted_array(alignments map[string]*alignment) []alignment {
+	ret := make([]alignment, 0)
+	for _, v := range alignments {
+		ret = append(ret, *v)
+	}
+	sort.Slice(ret, func(i, j int) bool { return ret[i].WeightedTotal > ret[j].WeightedTotal })
+	return ret
+}
+
 func Align(c echo.Context) error {
 	var year, learning_area string
 	learning_area = c.QueryParam("area")
@@ -185,8 +199,8 @@ func Align(c echo.Context) error {
 		year = "K,P,1,2,3,4,5,6,7,8,9,10,11,12"
 	}
 	resources := filter_repository(repository,
-		strings.Split(strings.Replace(learning_area, "\"", "", -1), ";"),
-		strings.Split(strings.Replace(year, "\"", "", -1), ";"),
+		strings.Split(strings.Replace(learning_area, "\"", "", -1), ","),
+		strings.Split(strings.Replace(year, "\"", "", -1), ","),
 	)
 	response := make(map[string]*alignment)
 	// TODO: filter candidate content descriptions by year and area
@@ -194,5 +208,5 @@ func Align(c echo.Context) error {
 		response = extract_alignments(item, response)
 		response = normalise_alignments(response)
 	}
-	return c.JSON(http.StatusOK, response)
+	return c.JSON(http.StatusOK, alignments_to_sorted_array(response))
 }
