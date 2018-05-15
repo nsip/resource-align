@@ -2,7 +2,7 @@ package align
 
 import (
 	"encoding/json"
-	//"fmt"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -114,37 +114,85 @@ func Init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	repository = filter_repository(repository, []string{"Science"}, []string{"8"})
-	log.Printf("%+v\n", repository)
+	// log.Printf("%+v\n", filter_repository(repository, []string{"Science"}, []string{"8"}))
+}
+
+type alignment struct {
+	Expert        float64
+	Usage         float64
+	TextBased     float64
+	WeightedTotal float64
+}
+
+func extract_alignments(item repository_entry, alignments map[string]*alignment) map[string]*alignment {
+	for _, statement := range item.ManualAlignment {
+		if _, ok := alignments[statement]; !ok {
+			alignments[statement] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0}
+		}
+		alignments[statement].Expert = alignments[statement].Expert + 1
+	}
+	for statement, value := range item.Paradata {
+		if _, ok := alignments[statement]; !ok {
+			alignments[statement] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0}
+		}
+		alignments[statement].Usage = alignments[statement].Usage + float64(value)
+	}
+	// TODO: call classifier on resource text
+	return alignments
+}
+
+func normalise_alignments(alignments map[string]*alignment) map[string]*alignment {
+	max := 0.0
+	for _, v := range alignments {
+		if max > v.Expert {
+			max = v.Expert
+		}
+	}
+	if max > 0 {
+		for k, _ := range alignments {
+			alignments[k].Expert = alignments[k].Expert / max
+		}
+	}
+	max = 0.0
+	for _, v := range alignments {
+		if max > v.Usage {
+			max = v.Usage
+		}
+	}
+	if max > 0 {
+		for k, _ := range alignments {
+			alignments[k].Usage = alignments[k].Usage / max
+		}
+	}
+	// TODO: normalise classifier results: (i - min) / (max - min)
+	for k, _ := range alignments {
+		// TODO: introduce weights
+		alignments[k].WeightedTotal = alignments[k].Expert + alignments[k].Usage + alignments[k].TextBased
+	}
+	return alignments
 }
 
 func Align(c echo.Context) error {
-	/*
-		var years, learning_area, text string
-			learning_area = c.QueryParam("area")
-			text = c.QueryParam("text")
-			year = c.QueryParam("year")
-			log.Printf("Area: %s\nYears: %s\nText: %s\n", learning_area, year, text)
-			if learning_area == "" {
-				err := fmt.Errorf("area parameter not supplied")
-				c.String(http.StatusBadRequest, err.Error())
-				return err
-			}
-			if text == "" {
-				err := fmt.Errorf("text parameter not supplied")
-				c.String(http.StatusBadRequest, err.Error())
-				return err
-			}
-			if year == "" {
-				year = "K,P,1,2,3,4,5,6,7,8,9,10,11,12"
-			}
-			classifier, err := train_curriculum(curriculum, learning_area, strings.Split(year, ","))
-			if err != nil {
-				c.String(http.StatusBadRequest, err.Error())
-				return err
-			}
-			response := classify_text(classifier, curriculum_map, text)
-	*/
-	response := ""
+	var year, learning_area string
+	learning_area = c.QueryParam("area")
+	year = c.QueryParam("year")
+	if learning_area == "" {
+		err := fmt.Errorf("area parameter not supplied")
+		c.String(http.StatusBadRequest, err.Error())
+		return err
+	}
+	if year == "" {
+		year = "K,P,1,2,3,4,5,6,7,8,9,10,11,12"
+	}
+	resources := filter_repository(repository,
+		strings.Split(strings.Replace(learning_area, "\"", "", -1), ";"),
+		strings.Split(strings.Replace(year, "\"", "", -1), ";"),
+	)
+	response := make(map[string]*alignment)
+	// TODO: filter candidate content descriptions by year and area
+	for _, item := range resources {
+		response = extract_alignments(item, response)
+		response = normalise_alignments(response)
+	}
 	return c.JSON(http.StatusOK, response)
 }
