@@ -248,12 +248,26 @@ func normalise_alignments(alignments map[string]*alignment) map[string]*alignmen
 	return alignments
 }
 
-func alignments_to_sorted_array(alignments map[string]*alignment) []alignment {
+func alignments_to_sorted_array(alignments []map[string]*alignment) []alignment {
 	ret := make([]alignment, 0)
-	for _, v := range alignments {
-		ret = append(ret, *v)
+	for _, a := range alignments {
+		for _, v := range a {
+			ret = append(ret, *v)
+		}
 	}
 	sort.Slice(ret, func(i, j int) bool { return ret[i].WeightedTotal > ret[j].WeightedTotal })
+	return ret
+}
+
+func rank_resources(alignments []alignment) []alignment {
+	items := set.New()
+	ret := make([]alignment, 0)
+	for _, a := range alignments {
+		if !items.Has(a.Url) {
+			ret = append(ret, a)
+			items.Add(a.Url)
+		}
+	}
 	return ret
 }
 
@@ -282,9 +296,13 @@ func Align(c echo.Context) error {
 		curric_filter.Add(item.Item)
 	}
 
+	resource_arr := make([]map[string]*alignment, 0)
 	for _, item := range resources {
-		response = extract_alignments(item, response, learning_area, year, curric_filter)
-		response = normalise_alignments(response)
+		response = normalise_alignments(extract_alignments(item, response, learning_area, year, curric_filter))
+		resource_arr = append(resource_arr, response)
 	}
-	return c.JSON(http.StatusOK, alignments_to_sorted_array(response))
+	response1 := alignments_to_sorted_array(resource_arr)
+	log.Printf("%+v\n", response1)
+	response1 = rank_resources(response1)
+	return c.JSON(http.StatusOK, response1)
 }
