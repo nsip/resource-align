@@ -4,14 +4,17 @@ import (
 	"log"
 
 	"github.com/labstack/echo"
-	"github.com/nsip/resource-align"
+	cu "github.com/nsip/curriculum-align"
+	re "github.com/nsip/resource-align"
 )
 
 func main() {
-	align.Init()
+	cu.Init()
+	re.Init()
 	log.Println("Editor: localhost:1576")
 	e := echo.New()
-	e.GET("/align", align.Align)
+	e.GET("/align", re.Align)
+	e.GET("/curricalign", cu.Align)
 	log.Println("Editor: localhost:1576")
 	e.Logger.Fatal(e.Start(":1576"))
 }

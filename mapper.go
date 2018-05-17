@@ -3,8 +3,10 @@ package align
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,8 +14,12 @@ import (
 
 	"github.com/juliangruber/go-intersect"
 	"github.com/labstack/echo"
+	"github.com/nsip/curriculum-align"
 	"github.com/recursionpharma/go-csv-map"
+	"gopkg.in/fatih/set.v0"
 )
+
+// requires that github.com/nsip/curriculum-align be running as a webservice, /curricalign, on port :1576
 
 // This is a dummy repository; in real life call this code would be replaced by an API querying the repository
 // assumes tab-delimited file with header.
@@ -71,7 +77,7 @@ func convert_to_repository(csv []map[string]string) map[string]repository_entry 
 		paradata := make(map[string]int)
 		alignments := make([]string, 0)
 		json.Unmarshal([]byte(record["Paradata"]), &paradata)
-		json.Unmarshal([]byte(record["manual-Alignment"]), &alignments)
+		json.Unmarshal([]byte(record["Manual-Alignment"]), &alignments)
 		years := strings.Split(strings.Replace(record["Year"], "\"", "", -1), ";")
 		sort.Slice(years, func(i, j int) bool { return years[i] > years[j] })
 		areas := strings.Split(strings.Replace(record["Learning-Area"], "\"", "", -1), ";")
@@ -127,8 +133,31 @@ type alignment struct {
 	WeightedTotal float64
 }
 
-func extract_alignments(item repository_entry, alignments map[string]*alignment) map[string]*alignment {
+func get_curric_alignments(learning_area string, year string, text string) ([]align.AlignmentType, error) {
+	resp, err := http.Get("http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(text))
+	log.Println("http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(text))
+	matches := make([]align.AlignmentType, 0)
+	if err != nil {
+		log.Println("Quit get_curric_alignments (1)")
+		return matches, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		log.Println("Quit get_curric_alignments (2)")
+		return matches, err
+	}
+	json.Unmarshal([]byte(body), &matches)
+	log.Printf("%+v\n", matches)
+	return matches, nil
+}
+
+func extract_alignments(item repository_entry, alignments map[string]*alignment, learning_area string, year string, filter *set.Set) map[string]*alignment {
+	// get filter: curriculum items specific to the given learning_area and year
 	for _, statement := range item.ManualAlignment {
+		if !filter.Has(statement) {
+			continue
+		}
 		key := statement + ":" + item.Url
 		if _, ok := alignments[key]; !ok {
 			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: statement}
@@ -136,13 +165,38 @@ func extract_alignments(item repository_entry, alignments map[string]*alignment)
 		alignments[key].Expert = alignments[key].Expert + 1
 	}
 	for statement, value := range item.Paradata {
+		if !filter.Has(statement) {
+			continue
+		}
 		key := statement + ":" + item.Url
 		if _, ok := alignments[key]; !ok {
 			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: statement}
 		}
 		alignments[key].Usage = alignments[key].Usage + float64(value)
 	}
-	// TODO: call classifier on resource text
+	matches, err := get_curric_alignments(learning_area, year, item.Content)
+	// if err, we ignore
+	if err == nil {
+		i := 0
+		// use only first 5 matches
+		for _, match := range matches {
+			if i > 4 {
+				break
+			}
+			if !filter.Has(match.Item) {
+				continue
+			}
+			i += 1
+			key := match.Item + ":" + item.Url
+			if _, ok := alignments[key]; !ok {
+				alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: match.Item}
+			}
+			alignments[key].TextBased = match.Score
+		}
+	} else {
+		log.Println("FAIL: http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(item.Content))
+		log.Println(err)
+	}
 	return alignments
 }
 
@@ -169,7 +223,24 @@ func normalise_alignments(alignments map[string]*alignment) map[string]*alignmen
 			alignments[k].Usage = alignments[k].Usage / max
 		}
 	}
-	// TODO: normalise classifier results: (i - min) / (max - min)
+	// normalise classifier results: (i - min) / (max - min)
+	// classifier results are negative
+	max = -999999999.0
+	min := 0.0
+	for _, v := range alignments {
+		if max < v.TextBased {
+			max = v.TextBased
+		}
+		if min > v.TextBased {
+			min = v.TextBased
+		}
+	}
+	if min < 0 {
+		for k, _ := range alignments {
+			alignments[k].TextBased = (alignments[k].TextBased - min) / (max - min)
+
+		}
+	}
 	for k, _ := range alignments {
 		// TODO: introduce weights
 		alignments[k].WeightedTotal = alignments[k].Expert + alignments[k].Usage + alignments[k].TextBased
@@ -203,9 +274,16 @@ func Align(c echo.Context) error {
 		strings.Split(strings.Replace(year, "\"", "", -1), ","),
 	)
 	response := make(map[string]*alignment)
-	// TODO: filter candidate content descriptions by year and area
+	// filter candidate content descriptions by year and area
+	matches, _ := get_curric_alignments(learning_area, year, "a a a a a a a a")
+	curric_filter := set.New()
+	log.Printf("%+v\n", matches)
+	for _, item := range matches {
+		curric_filter.Add(item.Item)
+	}
+
 	for _, item := range resources {
-		response = extract_alignments(item, response)
+		response = extract_alignments(item, response, learning_area, year, curric_filter)
 		response = normalise_alignments(response)
 	}
 	return c.JSON(http.StatusOK, alignments_to_sorted_array(response))
