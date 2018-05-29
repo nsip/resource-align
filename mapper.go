@@ -20,9 +20,6 @@ import (
 // requires that github.com/nsip/curriculum-align be running as a webservice, /curricalign, on port :1576
 
 // This is a dummy repository; in real life call this code would be replaced by an API querying the repository
-// assumes tab-delimited file with header.
-// Expects to find fields URL     Content         Paradata        Manual-Alignment	Learning-Area	Year
-// Year and Learning-Area can contain multiple values; they are ";"-delimited
 // Paradata contains JSON map of curriculum IDs to hits
 // Manual Alignment contains JSON list of curriculum IDs aligned by expert in the repository
 
@@ -34,66 +31,6 @@ type repository_entry struct {
 	LearningArea    []string `json:"Learning-Area"`
 	Year            []string
 }
-
-/*
-func read_repository(directory string) (map[string]repository_entry, error) {
-	files, _ := filepath.Glob(directory + "/*.txt")
-	if len(files) == 0 {
-		log.Fatalln("No *.txt repository files found in input folder" + directory)
-	}
-	records := make([]map[string]string, 0)
-	for _, filename := range files {
-		buf, err := os.Open(filename)
-		if err != nil {
-			log.Printf("%s: ", filename)
-			log.Fatalln(err)
-		}
-		defer buf.Close()
-		reader := csvmap.NewReader(buf)
-		reader.Reader.Comma = '\t'
-		reader.Reader.LazyQuotes = true
-		columns, err := reader.ReadHeader()
-		if err != nil {
-			log.Printf("%s: ", filename)
-			log.Fatalln(err)
-		}
-		reader.Columns = columns
-		records1, err := reader.ReadAll()
-		if err != nil {
-			log.Printf("%s: ", filename)
-			log.Fatalln(err)
-		}
-		records = append(records, records1...)
-	}
-	return convert_to_repository(records), nil
-}
-
-// iterate through CSV, converting text to repository struct. Keyed on URL, will overwrite
-// entries with the same URL
-func convert_to_repository(csv []map[string]string) map[string]repository_entry {
-	ret := make(map[string]repository_entry, 0)
-	for _, record := range csv {
-		paradata := make(map[string]int)
-		alignments := make([]string, 0)
-		json.Unmarshal([]byte(record["Paradata"]), &paradata)
-		json.Unmarshal([]byte(record["Manual-Alignment"]), &alignments)
-		years := strings.Split(strings.Replace(record["Year"], "\"", "", -1), ";")
-		sort.Slice(years, func(i, j int) bool { return years[i] > years[j] })
-		areas := strings.Split(strings.Replace(record["Learning-Area"], "\"", "", -1), ";")
-		sort.Slice(areas, func(i, j int) bool { return areas[i] > areas[j] })
-		ret[record["URL"]] = repository_entry{
-			Url:             record["URL"],
-			Content:         record["Content"],
-			Year:            years,
-			LearningArea:    areas,
-			Paradata:        paradata,
-			ManualAlignment: alignments,
-		}
-	}
-	//log.Printf("%+v", ret)
-	return ret
-}
-*/
 
 func read_repository(directory string) (map[string]repository_entry, error) {
 	files, _ := filepath.Glob(directory + "/*.json")
@@ -113,7 +50,7 @@ func read_repository(directory string) (map[string]repository_entry, error) {
 			ret[record.Url] = record
 		}
 	}
-	log.Printf("%+v", ret)
+	//log.Printf("%+v", ret)
 	return ret, nil
 }
 
@@ -206,13 +143,7 @@ func extract_alignments(item repository_entry, learning_area string, year string
 	// if err, we ignore
 	if err == nil {
 		i := 0
-		// use only first 5 matches
 		for _, match := range matches {
-			/*
-				if i > 4 {
-					break
-				}
-			*/
 			if !filter.Has(match.Item) {
 				continue
 			}
