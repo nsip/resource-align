@@ -148,11 +148,12 @@ func get_curric_alignments(learning_area string, year string, text string) ([]al
 		return matches, err
 	}
 	json.Unmarshal([]byte(body), &matches)
-	log.Printf("%+v\n", matches)
+	//log.Printf("%+v\n", matches)
 	return matches, nil
 }
 
-func extract_alignments(item repository_entry, alignments map[string]*alignment, learning_area string, year string, filter *set.Set) map[string]*alignment {
+func extract_alignments(item repository_entry, learning_area string, year string, filter *set.Set) map[string]*alignment {
+	alignments := make(map[string]*alignment)
 	// get filter: curriculum items specific to the given learning_area and year
 	for _, statement := range item.ManualAlignment {
 		if !filter.Has(statement) {
@@ -180,9 +181,11 @@ func extract_alignments(item repository_entry, alignments map[string]*alignment,
 		i := 0
 		// use only first 5 matches
 		for _, match := range matches {
-			if i > 4 {
-				break
-			}
+			/*
+				if i > 4 {
+					break
+				}
+			*/
 			if !filter.Has(match.Item) {
 				continue
 			}
@@ -287,22 +290,28 @@ func Align(c echo.Context) error {
 		strings.Split(strings.Replace(learning_area, "\"", "", -1), ","),
 		strings.Split(strings.Replace(year, "\"", "", -1), ","),
 	)
-	response := make(map[string]*alignment)
 	// filter candidate content descriptions by year and area
 	matches, _ := get_curric_alignments(learning_area, year, "a a a a a a a a")
 	curric_filter := set.New()
-	log.Printf("%+v\n", matches)
+	//log.Printf("%+v\n", matches)
 	for _, item := range matches {
 		curric_filter.Add(item.Item)
 	}
+	log.Printf("Filtering against Year/Learning Area: only report on: %+v\n", curric_filter)
 
 	resource_arr := make([]map[string]*alignment, 0)
 	for _, item := range resources {
-		response = normalise_alignments(extract_alignments(item, response, learning_area, year, curric_filter))
+		log.Println("ITEM::")
+		log.Printf("%+v\n", item)
+		response := normalise_alignments(extract_alignments(item, learning_area, year, curric_filter))
+		log.Println("NORMALISE::")
+		out, _ := json.MarshalIndent(alignments_to_sorted_array([]map[string]*alignment{response}), "", "  ")
+		log.Println(string(out))
 		resource_arr = append(resource_arr, response)
 	}
 	response1 := alignments_to_sorted_array(resource_arr)
-	log.Printf("%+v\n", response1)
+	out, _ := json.MarshalIndent(response1, "", "  ")
+	log.Println(string(out))
 	response1 = rank_resources(response1)
-	return c.JSON(http.StatusOK, response1)
+	return c.JSONPretty(http.StatusOK, response1, "  ")
 }
