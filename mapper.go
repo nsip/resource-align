@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -15,7 +14,6 @@ import (
 	"github.com/juliangruber/go-intersect"
 	"github.com/labstack/echo"
 	"github.com/nsip/curriculum-align"
-	"github.com/recursionpharma/go-csv-map"
 	"gopkg.in/fatih/set.v0"
 )
 
@@ -29,14 +27,15 @@ import (
 // Manual Alignment contains JSON list of curriculum IDs aligned by expert in the repository
 
 type repository_entry struct {
-	Url             string
+	Url             string `json:"URL"`
 	Content         string
 	Paradata        map[string]int
-	ManualAlignment []string
-	LearningArea    []string
+	ManualAlignment []string `json:"Manual-Alignment"`
+	LearningArea    []string `json:"Learning-Area"`
 	Year            []string
 }
 
+/*
 func read_repository(directory string) (map[string]repository_entry, error) {
 	files, _ := filepath.Glob(directory + "/*.txt")
 	if len(files) == 0 {
@@ -91,7 +90,31 @@ func convert_to_repository(csv []map[string]string) map[string]repository_entry 
 			ManualAlignment: alignments,
 		}
 	}
+	//log.Printf("%+v", ret)
 	return ret
+}
+*/
+
+func read_repository(directory string) (map[string]repository_entry, error) {
+	files, _ := filepath.Glob(directory + "/*.json")
+	if len(files) == 0 {
+		log.Fatalln("No *.json curriculum files found in input folder" + directory)
+	}
+	ret := make(map[string]repository_entry, 0)
+	for _, filename := range files {
+		buf, err := ioutil.ReadFile(filename)
+		if err != nil {
+			log.Printf("%s: ", filename)
+			log.Fatalln(err)
+		}
+		var records1 []repository_entry
+		json.Unmarshal(buf, &records1)
+		for _, record := range records1 {
+			ret[record.Url] = record
+		}
+	}
+	log.Printf("%+v", ret)
+	return ret, nil
 }
 
 // filter repository to match language area(s) and year level(s)
@@ -165,6 +188,8 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		}
 		alignments[key].Expert = alignments[key].Expert + 1
 	}
+	out, _ := json.MarshalIndent(alignments, "", "  ")
+	log.Println(string(out))
 	for statement, value := range item.Paradata {
 		if !filter.Has(statement) {
 			continue
@@ -175,6 +200,8 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		}
 		alignments[key].Usage = alignments[key].Usage + float64(value)
 	}
+	out, _ = json.MarshalIndent(alignments, "", "  ")
+	log.Println(string(out))
 	matches, err := get_curric_alignments(learning_area, year, item.Content)
 	// if err, we ignore
 	if err == nil {
@@ -200,6 +227,8 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		log.Println("FAIL: http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(item.Content))
 		log.Println(err)
 	}
+	out, _ = json.MarshalIndent(alignments, "", "  ")
+	log.Println(string(out))
 	return alignments
 }
 
