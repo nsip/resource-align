@@ -49,7 +49,7 @@ func read_repository(directory string) (map[string]repository_entry, error) {
 			ret[record.Url] = record
 		}
 	}
-	//log.Printf("%+v", ret)
+	log.Printf("REPOSITORY: %+v\n", ret)
 	return ret, nil
 }
 
@@ -84,7 +84,7 @@ func Init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// log.Printf("%+v\n", filter_repository(repository, []string{"Science"}, []string{"8"}))
+	//log.Printf("REPOSITORY\n%+v\n\n", repository)
 }
 
 type alignment struct {
@@ -117,7 +117,6 @@ func get_curric_alignments(learning_area string, year string, text string) ([]al
 
 func extract_alignments(item repository_entry, learning_area string, year string, filter *set.Set) map[string]*alignment {
 	alignments := make(map[string]*alignment)
-	// get filter: curriculum items specific to the given learning_area and year
 	for _, statement := range item.ManualAlignment {
 		if !filter.Has(statement) {
 			continue
@@ -128,7 +127,7 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		}
 		alignments[key].Expert = alignments[key].Expert + 1
 	}
-	out, _ := json.MarshalIndent(alignments, "", "  ")
+	//out, _ := json.MarshalIndent(alignments, "", "  ")
 	for statement, value := range item.Paradata {
 		if !filter.Has(statement) {
 			continue
@@ -139,15 +138,19 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		}
 		alignments[key].Usage = alignments[key].Usage + float64(value)
 	}
-	out, _ = json.MarshalIndent(alignments, "", "  ")
+	//out, _ = json.MarshalIndent(alignments, "", "  ")
 	matches, err := get_curric_alignments(learning_area, year, item.Content)
 	// if err, we ignore
 	if err == nil {
 		i := 0
 		for _, match := range matches {
-			if !filter.Has(match.Item) {
-				continue
-			}
+			// for coherent ranking of text-based alignments, we do not filter items until after normalisation!
+			// if we filter them too early, then we will get spurious perfect matches for the nominated items, when in fact other curriculum items in the same domain are better matches
+			/*
+				if !filter.Has(match.Item) {
+					continue
+				}
+			*/
 			i += 1
 			key := match.Item + ":" + item.Url
 			if _, ok := alignments[key]; !ok {
@@ -159,11 +162,12 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		log.Println("FAIL: http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(item.Content))
 		log.Println(err)
 	}
-	out, _ = json.MarshalIndent(alignments, "", "  ")
+	out, _ := json.MarshalIndent(alignments, "", "  ")
+	log.Println(string(out))
 	return alignments
 }
 
-func normalise_alignments(alignments map[string]*alignment) map[string]*alignment {
+func normalise_alignments(alignments map[string]*alignment, filter *set.Set) map[string]*alignment {
 	max := 0.0
 	for _, v := range alignments {
 		if max < v.Expert {
@@ -206,7 +210,13 @@ func normalise_alignments(alignments map[string]*alignment) map[string]*alignmen
 	}
 	for k, _ := range alignments {
 		// TODO: introduce weights
-		alignments[k].WeightedTotal = alignments[k].Expert + alignments[k].Usage + alignments[k].TextBased
+		// we now filter out any text-based alignments on items that shall not be reported on
+		k_parts := strings.Split(k, ":")
+		if len(k_parts) > 1 && !filter.IsEmpty() && len(k_parts[0]) > 0 && !filter.Has(k_parts[0]) {
+			delete(alignments, k)
+		} else {
+			alignments[k].WeightedTotal = alignments[k].Expert + alignments[k].Usage + alignments[k].TextBased
+		}
 	}
 	return alignments
 }
@@ -276,7 +286,7 @@ func Align(c echo.Context) error {
 	for _, item := range resources {
 		log.Println("ITEM::")
 		log.Printf("%+v\n", item)
-		response := normalise_alignments(extract_alignments(item, learning_area, year, curric_filter))
+		response := normalise_alignments(extract_alignments(item, learning_area, year, curric_filter), curric_filter)
 		log.Println("NORMALISE::")
 		out, _ := json.MarshalIndent(alignments_to_sorted_array([]map[string]*alignment{response}), "", "  ")
 		log.Println(string(out))

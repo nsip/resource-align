@@ -18,7 +18,7 @@ where yr is the year level, area is the learning area, and item is the curriculu
 The repository that this implementation works from is a set of JSON files in the `repository` folder of the executable; in this distribution, sample files are in `cmd/repository`. The JSON structure required is an array of JSON objects, with the following structure:
 
 * URL: URL of resource
-* Content: Textual content of resource, to be used for alignment to curriculum via https://github.com/nsip/curriculum-align
+* Content: Textual content of resource, to be used for alignment to curriculum via https://github.com/nsip/curriculum-align. (NOTE: the value of Content needs to be kept to a single line.)
 * Paradata: JSON object, mapping curriculum items codes to the frequency with which the resource has been used to teach against that curriculum item in the repository
 * Manual-Alignment: List of nominated curriculum item codes that the resource has been aligned to in metadata, whether by the resource author, a local expert, or a third party
 * Learning-Area: List of learning areas that the resource relates to; is expected to be the same set of values as used in the related curriculum

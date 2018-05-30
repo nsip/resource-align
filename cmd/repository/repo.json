@@ -63,5 +63,30 @@
     "Manual-Alignment": [],
     "Learning-Area": ["English"],
     "Year": ["10"]
+  },
+  {
+    "URL":"https://myscopeoutreach.org/lessonPlans/MyScope%20Teaching%20resources%20-%20hydrophobic%20surfaces.pdf",
+    "Content":"The following activities have been designed to support the teaching of concepts related to  hydrophobicity  of  surfaces  and  how  technological  developments  in  microscopy  have  enhanced  our  knowledge  and  understanding  of  the  properties  of  materials. These  lessons  introduce  the  concept  of  water/repellent  surfaces  in  nature  (super  hydrophobic  leaves as example) and how humans can imitate this water/repellence natural phenomenon through  technological  developments  to  improve  our  life/style  (e.g.  waterproofing  textiles,  nano/ waterproofing surfaces).  .",
+    "Paradata": {},
+    "Manual-Alignment": ["SC4_17CW", "SC4_4WS", "SC4_6WS", "SC4_7WS", "SC4_8WS", "SC4_9WS"],
+    "Learning-Area": ["Science"],
+    "Year": ["7", "8"]
+  },
+  {
+    "URL":"Earth systems",
+    "Content":"Earth Systems is an Earth & space sciences unit for Stage 5. It is designed to give students an understanding of the interactions between Earth’s systems so that they are better equipped to deal with the complexity of the issue of human-induced climate change.       The big ideas to be explored in this unit are: 1 Interacting systems systems Earth can be understood in terms of four systems: the geosphere, the hydrosphere, the atmosphere and the biosphere. All natural processes involve the flow of matter and/or energy within and between these systems. These processes  2 Climate A region’s climate consists of its surface conditions (temperatures, precipitation, etc.) averaged over long periods of time. Climates are determined by a wide range of natural processes involving all four Earth systems, resulting in seven main climate zones. The greenhouse effect traps heat within the lower atmosphere and oceans, helping to make Earth habitable. Climates have varied dramatically through the history of the planet. 3 Global warming A wide range of evidence indicates that human activity is altering global climate systems. The enhanced greenhouse effect is caused by the addition of greenhouse gases to the atmosphere – mainly carbon dioxide from the burning of fossil fuels. Scientists make projections of future climate scenarios using complex computer models.",
+    "Paradata": {},
+    "Manual-Alignment": ["SC4_13ES", "SC4_4WS", "SC4_5WS", "SC4_7WS", "SC4_9WS"],
+    "Learning-Area": ["Science"],
+    "Year": ["7", "8"]
+  },
+  {
+    "URL":"Rocks, minerals and resources",
+    "Content":"uses examples to illustrate how models, theories and laws contribute to an understanding of phenomena. Describe the inner structure of the Earth in terms of core, mantle, crust and lithosphere. 1. Structure of the Earth 2. Rock cycle 3. Minerals 4. Sedimentary rocks 5. Fossils. 6. Weathering. 7. Chemical Weathering. 8. River and stream formation. As a flooded river slows down, which particles are likely to settle first — gravel, sand or fine clay?",
+    "Paradata": {},
+    "Manual-Alignment": [],
+    "Learning-Area": ["Science"],
+    "Year": ["8"]
   }
+
 ]
