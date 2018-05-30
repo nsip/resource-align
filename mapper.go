@@ -2,7 +2,6 @@ package align
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -57,16 +56,20 @@ func read_repository(directory string) (map[string]repository_entry, error) {
 // filter repository to match language area(s) and year level(s)
 func filter_repository(repository map[string]repository_entry, learning_area []string, years []string) map[string]repository_entry {
 	sort.Slice(years, func(i, j int) bool { return years[i] > years[j] })
-	sort.Slice(learning_area, func(i, j int) bool { return years[i] > years[j] })
+	sort.Slice(learning_area, func(i, j int) bool { return learning_area[i] > learning_area[j] })
 	ret := make(map[string]repository_entry)
 	for k, v := range repository {
-		overlap := intersect.Simple(years, v.Year)
-		if len(overlap.([]interface{})) == 0 {
-			continue
+		if len(years) > 0 {
+			overlap := intersect.Simple(years, v.Year)
+			if len(overlap.([]interface{})) == 0 {
+				continue
+			}
 		}
-		overlap = intersect.Simple(learning_area, v.LearningArea)
-		if len(overlap.([]interface{})) == 0 {
-			continue
+		if len(learning_area) > 0 {
+			overlap := intersect.Simple(learning_area, v.LearningArea)
+			if len(overlap.([]interface{})) == 0 {
+				continue
+			}
 		}
 		ret[k] = v
 	}
@@ -126,7 +129,6 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		alignments[key].Expert = alignments[key].Expert + 1
 	}
 	out, _ := json.MarshalIndent(alignments, "", "  ")
-	log.Println(string(out))
 	for statement, value := range item.Paradata {
 		if !filter.Has(statement) {
 			continue
@@ -138,7 +140,6 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		alignments[key].Usage = alignments[key].Usage + float64(value)
 	}
 	out, _ = json.MarshalIndent(alignments, "", "  ")
-	log.Println(string(out))
 	matches, err := get_curric_alignments(learning_area, year, item.Content)
 	// if err, we ignore
 	if err == nil {
@@ -159,7 +160,6 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		log.Println(err)
 	}
 	out, _ = json.MarshalIndent(alignments, "", "  ")
-	log.Println(string(out))
 	return alignments
 }
 
@@ -234,28 +234,41 @@ func rank_resources(alignments []alignment) []alignment {
 	return ret
 }
 
+func param2slice(q string) []string {
+	ret1 := strings.Split(strings.Replace(q, "\"", "", -1), ",")
+	ret := make([]string, 0)
+	for _, a := range ret1 {
+		if len(a) > 0 {
+			ret = append(ret, a)
+		}
+	}
+	return ret
+}
+
 func Align(c echo.Context) error {
-	var year, learning_area string
+	var year, learning_area, item string
 	learning_area = c.QueryParam("area")
 	year = c.QueryParam("year")
-	if learning_area == "" {
-		err := fmt.Errorf("area parameter not supplied")
-		c.String(http.StatusBadRequest, err.Error())
-		return err
-	}
+	item = c.QueryParam("item")
 	if year == "" {
 		year = "K,P,1,2,3,4,5,6,7,8,9,10,11,12"
 	}
-	resources := filter_repository(repository,
-		strings.Split(strings.Replace(learning_area, "\"", "", -1), ","),
-		strings.Split(strings.Replace(year, "\"", "", -1), ","),
-	)
+	resources := filter_repository(repository, param2slice(learning_area), param2slice(year))
+	items_arr := strings.Split(strings.Replace(item, "\"", "", -1), ",")
+	items_set := set.New()
+	for _, a := range items_arr {
+		if len(a) > 0 {
+			items_set.Add(a)
+		}
+	}
 	// filter candidate content descriptions by year and area
 	matches, _ := get_curric_alignments(learning_area, year, "a a a a a a a a")
 	curric_filter := set.New()
 	//log.Printf("%+v\n", matches)
 	for _, item := range matches {
-		curric_filter.Add(item.Item)
+		if items_set.IsEmpty() || items_set.Has(item.Item) {
+			curric_filter.Add(item.Item)
+		}
 	}
 	log.Printf("Filtering against Year/Learning Area: only report on: %+v\n", curric_filter)
 
