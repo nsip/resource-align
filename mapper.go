@@ -94,6 +94,7 @@ type alignment struct {
 	Usage         float64
 	TextBased     float64
 	WeightedTotal float64
+	Content       string
 }
 
 func get_curric_alignments(learning_area string, year string, text string) ([]align.AlignmentType, error) {
@@ -123,7 +124,7 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		}
 		key := statement + ":" + item.Url
 		if _, ok := alignments[key]; !ok {
-			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: statement}
+			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Content: item.Content, Statement: statement}
 		}
 		alignments[key].Expert = alignments[key].Expert + 1
 	}
@@ -134,7 +135,7 @@ func extract_alignments(item repository_entry, learning_area string, year string
 		}
 		key := statement + ":" + item.Url
 		if _, ok := alignments[key]; !ok {
-			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: statement}
+			alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Content: item.Content, Statement: statement}
 		}
 		alignments[key].Usage = alignments[key].Usage + float64(value)
 	}
@@ -154,7 +155,7 @@ func extract_alignments(item repository_entry, learning_area string, year string
 			i += 1
 			key := match.Item + ":" + item.Url
 			if _, ok := alignments[key]; !ok {
-				alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Statement: match.Item}
+				alignments[key] = &alignment{Expert: 0, Usage: 0, TextBased: 0, WeightedTotal: 0, Url: item.Url, Content: item.Content, Statement: match.Item}
 			}
 			alignments[key].TextBased = match.Score
 		}

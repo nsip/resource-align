@@ -50,6 +50,7 @@ For example:
 The response is a JSON list of structs, one for each resource matched, with the following fields:
 
 * URL: The URL of the resource
+* Content: The abstract of the resource
 * Statement: The identifier of the curriculum item for which this resource is the best match. The curriculum items matched against are filtered by the parameters given in the web service call.
 * Expert: The score for the best match based on expert advice (the Manual-Alignment field of the repository entry).
 * Usage: The score for the best match based on usage (the Paradata field of the repository entry).
