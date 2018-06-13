@@ -5,7 +5,9 @@ NOTE: This is experimental and proof-of-concept code
 
 This code builds on https://github.com/nsip/curriculum-align (which it also invokes), and it proposes resources from a repository that are aligned to a given set of learning areas, year levels, and (optionally) curriculum standards, in ranked order.
 
-The distribution creates the web service as a library (`Align()`), and the `cmd` directory contains a sample shell for it. In the sample shell, the web service runs on port 1576.
+Binary distributions of the code are available in the build/ directory.
+
+The web service is made available as a library (`Align()`); the `cmd` directory contains a sample shell for it, which is used in the binary distribution. In the sample shell, the web service runs on port 1576. The test script `test.sh` issues representative REST queries against the web service.
 
 The web service takes the following arguments:
 
