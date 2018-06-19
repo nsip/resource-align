@@ -2,6 +2,7 @@ package align
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,7 +17,8 @@ import (
 	"gopkg.in/fatih/set.v0"
 )
 
-// requires that github.com/nsip/curriculum-align be running as a webservice, /curricalign, on port :1576
+// Requires that github.com/nsip/curriculum-align be running as a webservice, /curricalign;
+// port that curriculum-align is running on is an initialisation parameter for this service
 
 // This is a dummy repository; in real life call this code would be replaced by an API querying the repository
 // Paradata contains JSON map of curriculum IDs to hits
@@ -78,9 +80,12 @@ func filter_repository(repository map[string]repository_entry, learning_area []s
 
 var repository map[string]repository_entry
 
-func Init() {
+var CurriculumPort string
+
+func Init(curriculumPort string) {
 	var err error
 	repository, err = read_repository("./repository/")
+	CurriculumPort = curriculumPort
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -97,9 +102,13 @@ type alignment struct {
 	Content       string
 }
 
+func get_curric_alignments_url(learning_area string, year string, text string) string {
+	return fmt.Sprintf("http://localhost:%s/curricalign?area=%s&year=%s&text=%s", CurriculumPort, learning_area, year, url.QueryEscape(text))
+}
+
 func get_curric_alignments(learning_area string, year string, text string) ([]align.AlignmentType, error) {
-	resp, err := http.Get("http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(text))
-	log.Println("http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(text))
+	resp, err := http.Get(get_curric_alignments_url(learning_area, year, text))
+	// log.Println("http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(text))
 	matches := make([]align.AlignmentType, 0)
 	if err != nil {
 		log.Println("Quit get_curric_alignments (1)")
@@ -160,7 +169,7 @@ func extract_alignments(item repository_entry, learning_area string, year string
 			alignments[key].TextBased = match.Score
 		}
 	} else {
-		log.Println("FAIL: http://localhost:1576/curricalign?area=" + learning_area + "&year=" + year + "&text=" + url.QueryEscape(item.Content))
+		log.Println(get_curric_alignments_url(learning_area, year, item.Content))
 		log.Println(err)
 	}
 	out, _ := json.MarshalIndent(alignments, "", "  ")
