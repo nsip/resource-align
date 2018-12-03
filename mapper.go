@@ -49,6 +49,7 @@ func read_repository(directory string) (map[string]repository_entry, error) {
 		json.Unmarshal(buf, &records1)
 		for _, record := range records1 {
 			ret[record.Url] = record
+			align.Tokenise(record.Url, record.Content, record)
 		}
 	}
 	log.Printf("REPOSITORY: %+v\n", ret)
