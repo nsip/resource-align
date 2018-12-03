@@ -58,3 +58,10 @@ The response is a JSON list of structs, one for each resource matched, with the 
 * WeightedTotal: the overall score for the best match; currently the sum of the Expert, Usage, and TextBased scores.
 
 Each of the Expert, Usage, and TextBased scores are normalised: for each item, they are normalised to range from 0 to 1. The response is ranked in order of WeightedTotal.
+
+As with curriculum-align, all text tokenised in the gem from the resource repository is also indexed and available for retrieval:
+
+````
+GET http://localhost:1576/index?search=word
+````
+
