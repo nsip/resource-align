@@ -1,4 +1,8 @@
 # resource-align
+
+****DEPRECATED (RETIRED)****
+*This repository is now retired, achived and no longer maintained - note particularly that security updates are NO LONGER being performed.* 
+
 Web service to align resources to curriculum standards, drawing on multiple criteria
 
 NOTE: This is experimental and proof-of-concept code
